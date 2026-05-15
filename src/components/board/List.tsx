@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Droppable, Draggable } from '@hello-pangea/dnd'
-import { MoreHorizontal, Plus, Trash2, Edit2 } from 'lucide-react'
-import { List as ListType, Task } from '@/lib/mocks/board-data'
+import { MoreHorizontal, Plus, Trash2, Edit2, Palette, X } from 'lucide-react'
+import { List as ListType, Task, LIST_COLORS } from '@/lib/mocks/board-data'
 import { Card } from './Card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { createCard, deleteList, renameList } from '@/lib/actions/board'
+import { createCard, deleteList, renameList, updateListColor } from '@/lib/actions/board'
 import { toast } from 'sonner'
 import {
   DropdownMenu,
@@ -15,6 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 interface ListProps {
   list: ListType
@@ -29,6 +30,7 @@ export function List({ list, index, onTaskClick, boardId, setLists }: ListProps)
   const [newCardTitle, setNewCardTitle] = useState('')
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [listTitle, setListTitle] = useState(list.title)
+  const [isColorPickerOpen, setIsColorPickerOpen] = useState(false)
 
   const handleAddCard = async () => {
     if (!newCardTitle.trim()) return
@@ -93,19 +95,37 @@ export function List({ list, index, onTaskClick, boardId, setLists }: ListProps)
     }
   }
 
+  const handleColorChange = async (color: string | null) => {
+    // Optimistic update
+    setLists(prev => prev.map(l => l.id === list.id ? { ...l, color: color || undefined } : l))
+    setIsColorPickerOpen(false)
+
+    try {
+      await updateListColor(list.id, color)
+    } catch (error) {
+      toast.error("Failed to update list color")
+    }
+  }
+
   return (
     <Draggable draggableId={list.id} index={index}>
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}
           {...provided.draggableProps}
-          className={`w-80 flex flex-col flex-shrink-0 bg-muted/40 rounded-xl max-h-full border border-border/50 ${
+          className={`w-80 flex flex-col flex-shrink-0 rounded-xl max-h-full border overflow-hidden transition-colors duration-300 ${
             snapshot.isDragging ? 'shadow-lg ring-2 ring-primary/20' : ''
-          }`}
+          } ${list.color ? 'border-transparent' : 'bg-muted/40 border-border/50'}`}
+          style={{
+            ...provided.draggableProps.style,
+            ...(list.color ? { backgroundColor: list.color } : {}),
+          }}
         >
           <div 
             {...provided.dragHandleProps}
-            className="p-3 flex items-center justify-between group cursor-grab active:cursor-grabbing"
+            className={`p-3 flex items-center justify-between group cursor-grab active:cursor-grabbing ${
+              list.color ? 'text-white' : ''
+            }`}
           >
             <div className="flex items-center gap-2 flex-1 mr-2">
               {isEditingTitle ? (
@@ -119,24 +139,33 @@ export function List({ list, index, onTaskClick, boardId, setLists }: ListProps)
                 />
               ) : (
                 <h3 
-                  className="font-semibold text-sm px-1 cursor-pointer hover:bg-muted/50 rounded flex-1"
+                  className={`font-semibold text-sm px-1 cursor-pointer rounded flex-1 ${
+                    list.color ? 'hover:bg-white/15' : 'hover:bg-muted/50'
+                  }`}
                   onClick={() => setIsEditingTitle(true)}
                 >
                   {list.title}
                 </h3>
               )}
-              <span className="bg-muted text-muted-foreground text-xs px-2 py-0.5 rounded-full font-medium shrink-0">
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
+                list.color ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'
+              }`}>
                 {list.tasks.length}
               </span>
             </div>
             
             <DropdownMenu>
-              <DropdownMenuTrigger className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 w-6 text-muted-foreground opacity-0 group-hover:opacity-100">
+              <DropdownMenuTrigger className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 w-6 ${
+                list.color ? 'text-white/70 hover:text-white hover:bg-white/15' : 'text-muted-foreground'
+              }`}>
                 <MoreHorizontal className="h-4 w-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-40">
                 <DropdownMenuItem onClick={() => setIsEditingTitle(true)}>
                   <Edit2 className="w-4 h-4 mr-2" /> Rename
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => { e.preventDefault(); setIsColorPickerOpen(true) }}>
+                  <Palette className="w-4 h-4 mr-2" /> Color
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleDeleteList} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
@@ -144,6 +173,49 @@ export function List({ list, index, onTaskClick, boardId, setLists }: ListProps)
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {/* Color Picker Popover */}
+            <Popover open={isColorPickerOpen} onOpenChange={setIsColorPickerOpen}>
+              <PopoverTrigger className="hidden" />
+              <PopoverContent align="end" className="w-[220px] p-3" sideOffset={8}>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">List Color</h4>
+                    <button 
+                      onClick={() => setIsColorPickerOpen(false)}
+                      className="text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {LIST_COLORS.map((c) => (
+                      <button
+                        key={c.value}
+                        title={c.name}
+                        onClick={() => handleColorChange(c.value)}
+                        className={`w-10 h-10 rounded-lg border-2 transition-all hover:scale-110 hover:shadow-md ${
+                          list.color === c.value 
+                            ? 'border-foreground shadow-sm scale-105' 
+                            : 'border-transparent hover:border-border'
+                        }`}
+                        style={{ backgroundColor: c.value }}
+                      />
+                    ))}
+                  </div>
+                  {list.color && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="w-full text-xs text-muted-foreground"
+                      onClick={() => handleColorChange(null)}
+                    >
+                      <X className="w-3 h-3 mr-1.5" /> Remove color
+                    </Button>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <Droppable droppableId={list.id} type="task">
@@ -186,10 +258,16 @@ export function List({ list, index, onTaskClick, boardId, setLists }: ListProps)
           </Droppable>
 
           {!isAddingCard && (
-            <div className="p-2 border-t border-border/50">
+            <div className={`p-2 ${
+              list.color ? 'border-t border-white/15' : 'border-t border-border/50'
+            }`}>
               <Button 
                 variant="ghost" 
-                className="w-full justify-start text-muted-foreground hover:text-foreground"
+                className={`w-full justify-start ${
+                  list.color 
+                    ? 'text-white/80 hover:text-white hover:bg-white/15' 
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
                 onClick={() => setIsAddingCard(true)}
               >
                 <Plus className="mr-2 h-4 w-4" />

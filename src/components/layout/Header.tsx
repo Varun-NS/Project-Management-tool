@@ -1,15 +1,15 @@
-import { Bell, Search, User } from 'lucide-react'
+import { Bell, Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { AvatarMenu } from './AvatarMenu'
 
 export function Header() {
   return (
     <header className="h-14 border-b border-border bg-background flex items-center justify-between px-4 sticky top-0 z-10">
       <div className="flex items-center gap-4 flex-1">
         <div className="font-semibold text-lg flex items-center gap-2">
-          <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">K</div>
-          Kanban
+          <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">P</div>
+          Project Management Tool
         </div>
         
         <div className="hidden md:flex relative max-w-md w-full ml-4">
@@ -25,10 +25,7 @@ export function Header() {
         <Button variant="ghost" size="icon" className="text-muted-foreground">
           <Bell className="h-5 w-5" />
         </Button>
-        <Avatar className="h-8 w-8 cursor-pointer">
-          <AvatarImage src="" />
-          <AvatarFallback className="bg-primary/10 text-primary text-xs">VN</AvatarFallback>
-        </Avatar>
+        <AvatarMenu />
       </div>
     </header>
   )

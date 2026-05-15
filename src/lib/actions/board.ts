@@ -47,8 +47,29 @@ export async function getOrCreateDefaultBoard() {
   return await createBoard('My First Board')
 }
 
+export async function deleteBoard(boardId: string) {
+  const supabase = await getSupabase()
+  const { error } = await supabase.from('boards').delete().eq('id', boardId)
+  if (error) throw new Error(error.message)
+  revalidatePath('/')
+}
+
+export async function renameBoard(boardId: string, title: string) {
+  const supabase = await getSupabase()
+  const { error } = await supabase.from('boards').update({ title }).eq('id', boardId)
+  if (error) throw new Error(error.message)
+  revalidatePath('/')
+}
+
 export async function fetchBoardData(boardId: string) {
   const supabase = await getSupabase()
+
+  // Fetch board for category library
+  const { data: board, error: boardError } = await supabase
+    .from('boards')
+    .select('categories')
+    .eq('id', boardId)
+    .single()
 
   // Fetch lists
   const { data: lists, error: listsError } = await supabase
@@ -77,6 +98,7 @@ export async function fetchBoardData(boardId: string) {
     id: list.id,
     title: list.title,
     position: list.position,
+    color: list.color || undefined,
     tasks: cards
       .filter((card) => card.list_id === list.id)
       .map((card) => ({
@@ -87,6 +109,7 @@ export async function fetchBoardData(boardId: string) {
         dueDate: card.due_date ? new Date(card.due_date).toLocaleDateString() : undefined,
         priority: card.priority,
         position: card.position,
+        categories: card.categories || [],
         assignees: card.assignees ? [
           {
             id: card.assignees.id,
@@ -103,7 +126,7 @@ export async function fetchBoardData(boardId: string) {
       })),
   }))
 
-  return formattedLists
+  return { lists: formattedLists, boardCategories: board?.categories || [] }
 }
 
 export async function createList(boardId: string, title: string, position: number) {
@@ -127,6 +150,18 @@ export async function deleteList(listId: string) {
 export async function renameList(listId: string, title: string) {
   const supabase = await getSupabase()
   const { error } = await supabase.from('lists').update({ title }).eq('id', listId)
+  if (error) throw new Error(error.message)
+}
+
+export async function updateListColor(listId: string, color: string | null) {
+  const supabase = await getSupabase()
+  const { error } = await supabase.from('lists').update({ color }).eq('id', listId)
+  if (error) throw new Error(error.message)
+}
+
+export async function updateBoardCategories(boardId: string, categories: any[]) {
+  const supabase = await getSupabase()
+  const { error } = await supabase.from('boards').update({ categories }).eq('id', boardId)
   if (error) throw new Error(error.message)
 }
 

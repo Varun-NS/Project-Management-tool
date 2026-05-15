@@ -1,15 +1,16 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { DragDropContext, Droppable, DropResult } from '@hello-pangea/dnd'
 import { List as ListComponent } from './List'
-import { initialData, List, Task } from '@/lib/mocks/board-data'
+import { initialData, List, Task, Category } from '@/lib/mocks/board-data'
 import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
+import { Plus, Filter, Search, X } from 'lucide-react'
 import { CardModal } from './CardModal'
-import { fetchBoardData, updateListPositions, updateCardPositions, createList } from '@/lib/actions/board'
+import { fetchBoardData, updateListPositions, updateCardPositions, createList, updateBoardCategories } from '@/lib/actions/board'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 export function Board({ boardId }: { boardId: string }) {
   const [isMounted, setIsMounted] = useState(false)
@@ -20,6 +21,12 @@ export function Board({ boardId }: { boardId: string }) {
   const [isAddingList, setIsAddingList] = useState(false)
   const [newListTitle, setNewListTitle] = useState('')
   const [isLoading, setIsLoading] = useState(true)
+  const [boardCategories, setBoardCategories] = useState<Category[]>([])
+
+  // Filter state
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterPriority, setFilterPriority] = useState<string | null>(null)
 
   useEffect(() => {
     setIsMounted(true)
@@ -30,7 +37,8 @@ export function Board({ boardId }: { boardId: string }) {
     try {
       setIsLoading(true)
       const data = await fetchBoardData(boardId)
-      setLists(data)
+      setLists(data.lists)
+      setBoardCategories(data.boardCategories || [])
     } catch (error: any) {
       console.error("Failed to load board:", error)
       toast.error(error.message || "Failed to load board")
@@ -142,10 +150,125 @@ export function Board({ boardId }: { boardId: string }) {
     }
   }
 
+  const query = searchQuery.toLowerCase().trim()
+  const hasActiveFilters = query.length > 0 || filterPriority !== null
+
+  const filteredLists = useMemo(() => {
+    if (!hasActiveFilters) return lists
+    return lists.map(list => ({
+      ...list,
+      tasks: list.tasks.filter(task => {
+        // Search filter
+        if (query) {
+          const matchesTitle = task.content.toLowerCase().includes(query)
+          const matchesDesc = (task.description || '').toLowerCase().includes(query)
+          const matchesCategory = (task.categories || []).some(c => c.name.toLowerCase().includes(query))
+          const matchesPriority = (task.priority || '').toLowerCase().includes(query)
+          if (!matchesTitle && !matchesDesc && !matchesCategory && !matchesPriority) return false
+        }
+        // Priority filter
+        if (filterPriority !== null) {
+          if (filterPriority === 'None') {
+            if (task.priority) return false
+          } else {
+            if (task.priority !== filterPriority) return false
+          }
+        }
+        return true
+      })
+    }))
+  }, [lists, query, filterPriority, hasActiveFilters])
+
+  const totalFilteredCards = filteredLists.reduce((sum, l) => sum + l.tasks.length, 0)
+  const totalCards = lists.reduce((sum, l) => sum + l.tasks.length, 0)
+
   if (!isMounted) return null
 
   return (
     <>
+      {/* Filter Bar */}
+      <div className="flex items-center gap-3 px-6 py-2.5 border-b border-border/30 bg-background/30 backdrop-blur-sm shrink-0">
+        <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+          <PopoverTrigger className={`relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring border h-9 px-4 ${
+              hasActiveFilters ? 'border-primary text-primary bg-primary/10' : 'border-border bg-background hover:bg-accent hover:text-accent-foreground'
+            }`}>
+              <Filter className="w-4 h-4" />
+              Filter
+              {hasActiveFilters && (
+                <span className="bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                  {totalFilteredCards}/{totalCards}
+                </span>
+              )}
+            </PopoverTrigger>
+          <PopoverContent align="start" className="w-[320px] p-0" sideOffset={8}>
+            <div className="p-3 border-b border-border/40">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  autoFocus
+                  placeholder="Search cards, categories..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 h-9 text-sm"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="p-3 space-y-3">
+              <div className="space-y-2">
+                <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Priority</h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {['High', 'Medium', 'Low', 'None'].map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setFilterPriority(filterPriority === p ? null : p)}
+                      className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${
+                        filterPriority === p
+                          ? p === 'High' ? 'bg-destructive/15 text-destructive border-destructive/40'
+                          : p === 'Medium' ? 'bg-amber-500/15 text-amber-500 border-amber-500/40'
+                          : p === 'Low' ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/40'
+                          : 'bg-muted text-foreground border-foreground/30'
+                          : 'bg-transparent text-muted-foreground border-border hover:border-foreground/30 hover:text-foreground'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {hasActiveFilters && (
+              <div className="p-3 border-t border-border/40">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-xs text-muted-foreground"
+                  onClick={() => { setSearchQuery(''); setFilterPriority(null) }}
+                >
+                  <X className="w-3 h-3 mr-1.5" /> Clear all filters
+                </Button>
+              </div>
+            )}
+          </PopoverContent>
+        </Popover>
+
+        {hasActiveFilters && (
+          <button
+            onClick={() => { setSearchQuery(''); setFilterPriority(null) }}
+            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+          >
+            <X className="w-3 h-3" /> Clear
+          </button>
+        )}
+      </div>
+
       <DragDropContext onDragEnd={onDragEnd}>
         <Droppable droppableId="board" type="list" direction="horizontal">
           {(provided) => (
@@ -154,7 +277,7 @@ export function Board({ boardId }: { boardId: string }) {
               ref={provided.innerRef}
               className="flex gap-4 h-full p-6 items-start overflow-x-auto"
             >
-              {lists.map((list, index) => (
+              {filteredLists.map((list, index) => (
                 <ListComponent 
                   key={list.id} 
                   list={list} 
@@ -203,6 +326,9 @@ export function Board({ boardId }: { boardId: string }) {
         onClose={() => setSelectedTask(null)} 
         setLists={setLists}
         lists={lists}
+        boardCategories={boardCategories}
+        setBoardCategories={setBoardCategories}
+        boardId={boardId}
       />
     </>
   )

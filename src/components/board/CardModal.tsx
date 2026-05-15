@@ -2,16 +2,16 @@
 
 import * as React from 'react'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
-import { Task, List as ListType } from '@/lib/mocks/board-data'
+import { Task, List as ListType, Category, CATEGORY_COLORS } from '@/lib/mocks/board-data'
 import { Badge } from '@/components/ui/badge'
-import { CalendarIcon, Clock, AlignLeft, Users, Tag, CreditCard, ArrowRight, Copy, Trash2, ListMinus, MessageSquare } from 'lucide-react'
+import { CalendarIcon, Clock, AlignLeft, Users, Tag, CreditCard, ArrowRight, Copy, Trash2, ListMinus, MessageSquare, X, Palette, Check } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
-import { updateCardDetails, deleteCard, createCard, createComment } from '@/lib/actions/board'
+import { updateCardDetails, deleteCard, createCard, createComment, updateBoardCategories } from '@/lib/actions/board'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuGroup } from '@/components/ui/dropdown-menu'
@@ -22,14 +22,20 @@ interface CardModalProps {
   onClose: () => void
   setLists: React.Dispatch<React.SetStateAction<ListType[]>>
   lists: ListType[]
+  boardCategories: Category[]
+  setBoardCategories: React.Dispatch<React.SetStateAction<Category[]>>
+  boardId: string
 }
 
-export function CardModal({ task, isOpen, onClose, setLists, lists }: CardModalProps) {
+export function CardModal({ task, isOpen, onClose, setLists, lists, boardCategories, setBoardCategories, boardId }: CardModalProps) {
   const [comment, setComment] = React.useState('')
   const [isEditingTitle, setIsEditingTitle] = React.useState(false)
   const [title, setTitle] = React.useState('')
   const [isEditingDescription, setIsEditingDescription] = React.useState(false)
   const [description, setDescription] = React.useState('')
+  const [isCategoryOpen, setIsCategoryOpen] = React.useState(false)
+  const [newCategoryName, setNewCategoryName] = React.useState('')
+  const [newCategoryColor, setNewCategoryColor] = React.useState<string>(CATEGORY_COLORS[0].value)
 
   React.useEffect(() => {
     if (task) {
@@ -174,13 +180,85 @@ export function CardModal({ task, isOpen, onClose, setLists, lists }: CardModalP
     }
   }
 
-  const handleUpdatePriority = async (priority: 'High' | 'Medium' | 'Low') => {
+  const handleUpdatePriority = async (priority: 'High' | 'Medium' | 'Low' | undefined) => {
     updateTaskLocally({ priority })
     try {
-      await updateCardDetails(task.id, { priority })
-      toast.success(`Priority set to ${priority}`)
+      await updateCardDetails(task.id, { priority: priority || null })
+      toast.success(priority ? `Priority set to ${priority}` : 'Priority removed')
     } catch (error) {
       toast.error("Failed to update priority")
+    }
+  }
+
+  // Create a new category in the board library and assign it to this card
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) return
+    const newCat: Category = {
+      id: `cat-${Date.now()}`,
+      name: newCategoryName.trim(),
+      color: newCategoryColor,
+    }
+    // Add to board library
+    const updatedLibrary = [...boardCategories, newCat]
+    setBoardCategories(updatedLibrary)
+    // Add to this card
+    const updatedCardCats = [...(task.categories || []), newCat]
+    updateTaskLocally({ categories: updatedCardCats })
+    setNewCategoryName('')
+    setNewCategoryColor(CATEGORY_COLORS[0].value)
+    try {
+      await Promise.all([
+        updateBoardCategories(boardId, updatedLibrary),
+        updateCardDetails(task.id, { categories: updatedCardCats }),
+      ])
+    } catch (error) {
+      toast.error("Failed to add category")
+    }
+  }
+
+  // Toggle a board category on/off for this card
+  const handleToggleCategory = async (cat: Category) => {
+    const currentCats = task.categories || []
+    const isAssigned = currentCats.some(c => c.id === cat.id)
+    const updated = isAssigned
+      ? currentCats.filter(c => c.id !== cat.id)
+      : [...currentCats, cat]
+    updateTaskLocally({ categories: updated })
+    try {
+      await updateCardDetails(task.id, { categories: updated })
+    } catch (error) {
+      toast.error("Failed to update category")
+    }
+  }
+
+  // Delete a category from the board library and remove from ALL cards
+  const handleDeleteBoardCategory = async (catId: string) => {
+    const updatedLibrary = boardCategories.filter(c => c.id !== catId)
+    setBoardCategories(updatedLibrary)
+    // Remove from all cards optimistically
+    setLists(prev => prev.map(list => ({
+      ...list,
+      tasks: list.tasks.map(t => ({
+        ...t,
+        categories: (t.categories || []).filter(c => c.id !== catId)
+      }))
+    })))
+    try {
+      await updateBoardCategories(boardId, updatedLibrary)
+      // Note: removing from all cards in DB would need a backend function;
+      // for now, it's removed optimistically and will be cleaned on next save per card
+    } catch (error) {
+      toast.error("Failed to delete category")
+    }
+  }
+
+  const handleRemoveCategory = async (catId: string) => {
+    const updated = (task.categories || []).filter(c => c.id !== catId)
+    updateTaskLocally({ categories: updated })
+    try {
+      await updateCardDetails(task.id, { categories: updated })
+    } catch (error) {
+      toast.error("Failed to remove category")
     }
   }
 
@@ -339,6 +417,27 @@ export function CardModal({ task, isOpen, onClose, setLists, lists }: CardModalP
                     </Popover>
                   </div>
                 )}
+
+                {/* Categories Display */}
+                {task.categories && task.categories.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Categories</h4>
+                    <div className="flex items-center flex-wrap gap-1.5">
+                      {task.categories.map((cat) => (
+                        <span
+                          key={cat.id}
+                          className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full cursor-pointer group/cat transition-all hover:opacity-80"
+                          style={{ backgroundColor: `${cat.color}20`, color: cat.color, border: `1px solid ${cat.color}35` }}
+                        >
+                          {cat.name}
+                          <button onClick={() => handleRemoveCategory(cat.id)} className="opacity-0 group-hover/cat:opacity-100 transition-opacity ml-0.5">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Description Section */}
@@ -477,7 +576,7 @@ export function CardModal({ task, isOpen, onClose, setLists, lists }: CardModalP
 
                   <DropdownMenu>
                     <DropdownMenuTrigger className="w-full inline-flex items-center justify-start h-9 px-3 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-muted/40 hover:bg-muted text-foreground/80 hover:text-foreground">
-                      <Tag className="w-4 h-4 mr-2.5 opacity-70" /> Labels
+                      <Tag className="w-4 h-4 mr-2.5 opacity-70" /> Priority
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
                       <DropdownMenuGroup>
@@ -486,9 +585,90 @@ export function CardModal({ task, isOpen, onClose, setLists, lists }: CardModalP
                         <DropdownMenuItem onClick={() => handleUpdatePriority('High')} className="text-destructive font-medium cursor-pointer">High Priority</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleUpdatePriority('Medium')} className="text-orange-500 font-medium cursor-pointer">Medium Priority</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleUpdatePriority('Low')} className="text-emerald-500 font-medium cursor-pointer">Low Priority</DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleUpdatePriority(undefined)} className="text-muted-foreground font-medium cursor-pointer">None</DropdownMenuItem>
                       </DropdownMenuGroup>
                     </DropdownMenuContent>
                   </DropdownMenu>
+
+                  {/* Category Manager */}
+                  <Popover open={isCategoryOpen} onOpenChange={setIsCategoryOpen}>
+                    <PopoverTrigger className="w-full inline-flex items-center justify-start h-9 px-3 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-muted/40 hover:bg-muted text-foreground/80 hover:text-foreground">
+                      <Palette className="w-4 h-4 mr-2.5 opacity-70" /> Categories
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-[280px] p-0" sideOffset={8}>
+                      <div className="p-3 border-b border-border/40">
+                        <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Categories</h4>
+                      </div>
+                      <div className="p-3 space-y-3 max-h-[350px] overflow-y-auto">
+                        {/* Board category library — toggle on/off for this card */}
+                        {boardCategories.length > 0 && (
+                          <div className="space-y-1">
+                            {boardCategories.map((cat) => {
+                              const isAssigned = (task.categories || []).some(c => c.id === cat.id)
+                              return (
+                                <div key={cat.id} className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-muted/40 transition-colors group">
+                                  <button
+                                    onClick={() => handleToggleCategory(cat)}
+                                    className="flex items-center gap-2 flex-1 text-left"
+                                  >
+                                    <div className={`w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center transition-all ${
+                                      isAssigned ? 'border-transparent' : 'border-border'
+                                    }`} style={isAssigned ? { backgroundColor: cat.color, borderColor: cat.color } : undefined}>
+                                      {isAssigned && <Check className="w-2.5 h-2.5 text-white" />}
+                                    </div>
+                                    <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+                                    <span className="text-sm font-medium">{cat.name}</span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteBoardCategory(cat.id)}
+                                    title="Delete from all cards"
+                                    className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-all p-0.5"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+
+                        {boardCategories.length > 0 && (
+                          <div className="border-t border-border/40" />
+                        )}
+
+                        {/* Create new category */}
+                        <div className="space-y-2.5">
+                          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Create new</p>
+                          <Input
+                            placeholder="Category name..."
+                            value={newCategoryName}
+                            onChange={(e) => setNewCategoryName(e.target.value)}
+                            className="h-8 text-sm"
+                            onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                          />
+                          <div className="grid grid-cols-5 gap-1.5">
+                            {CATEGORY_COLORS.map((c) => (
+                              <button
+                                key={c.value}
+                                title={c.name}
+                                onClick={() => setNewCategoryColor(c.value)}
+                                className={`w-full aspect-square rounded-md border-2 transition-all hover:scale-110 flex items-center justify-center ${
+                                  newCategoryColor === c.value ? 'border-foreground scale-105' : 'border-transparent'
+                                }`}
+                                style={{ backgroundColor: c.value }}
+                              >
+                                {newCategoryColor === c.value && <Check className="w-3 h-3 text-white" />}
+                              </button>
+                            ))}
+                          </div>
+                          <Button size="sm" className="w-full h-8 text-xs" onClick={handleAddCategory} disabled={!newCategoryName.trim()}>
+                            Add Category
+                          </Button>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
 
                   <Popover>
                     <PopoverTrigger className="w-full inline-flex items-center justify-start h-9 px-3 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-muted/40 hover:bg-muted text-foreground/80 hover:text-foreground">

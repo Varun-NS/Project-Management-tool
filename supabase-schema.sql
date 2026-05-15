@@ -34,6 +34,7 @@ CREATE TABLE public.lists (
   board_id UUID REFERENCES public.boards(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   position REAL NOT NULL, -- using REAL or float to allow inserting between easily
+  color TEXT, -- hex color string for list background (e.g. '#f43f5e')
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -48,6 +49,7 @@ CREATE TABLE public.cards (
   priority TEXT DEFAULT 'Medium', -- 'Low', 'Medium', 'High'
   status TEXT DEFAULT 'Todo',
   position REAL NOT NULL,
+  categories JSONB DEFAULT '[]', -- array of {id, name, color} objects
   created_by UUID REFERENCES public.users(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );

@@ -1,7 +1,6 @@
 import { Board } from '@/components/board/Board'
 import { Button } from '@/components/ui/button'
-import { Filter, Users, Calendar, MoreHorizontal } from 'lucide-react'
-import { signout } from '@/app/auth/actions'
+import { Users } from 'lucide-react'
 import { getUserBoards, createBoard } from '@/lib/actions/board'
 import { redirect } from 'next/navigation'
 
@@ -23,34 +22,13 @@ export default async function Home(props: { searchParams: Promise<{ boardId?: st
   return (
     <div className="flex flex-col h-full">
       {/* Board Header */}
-      <div className="h-16 border-b border-border/50 flex items-center justify-between px-6 bg-background/50 backdrop-blur-sm shrink-0">
-        <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold tracking-tight">{activeBoard.title}</h1>
-          <Button variant="secondary" size="sm" className="hidden md:flex">
-            <Users className="w-4 h-4 mr-2" />
+      <div className="h-14 border-b border-border/50 flex items-center px-6 bg-background/50 backdrop-blur-sm shrink-0">
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-bold tracking-tight">{activeBoard.title}</h1>
+          <div className="w-px h-5 bg-border/50" />
+          <Button variant="secondary" size="sm" className="hidden md:flex h-8 text-xs">
+            <Users className="w-3.5 h-3.5 mr-1.5" />
             Team
-          </Button>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="hidden md:flex">
-            <Filter className="w-4 h-4 mr-2" />
-            Filter
-          </Button>
-          <Button variant="outline" size="sm" className="hidden md:flex">
-            <Calendar className="w-4 h-4 mr-2" />
-            Calendar
-          </Button>
-          <div className="w-px h-6 bg-border mx-2" />
-          
-          <form action={signout}>
-            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-              Sign Out
-            </Button>
-          </form>
-          
-          <Button variant="ghost" size="icon">
-            <MoreHorizontal className="w-5 h-5" />
           </Button>
         </div>
       </div>

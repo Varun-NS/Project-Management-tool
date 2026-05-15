@@ -1,5 +1,46 @@
 export type Id = string;
 
+// ── 12 List Colors (muted pastels, easy on the eyes) ──
+export const LIST_COLORS = [
+  { name: 'Slate',    value: '#7c8a9a' },
+  { name: 'Rose',     value: '#c97878' },
+  { name: 'Orange',   value: '#c48a5c' },
+  { name: 'Amber',    value: '#b89a4f' },
+  { name: 'Lime',     value: '#8aab5a' },
+  { name: 'Emerald',  value: '#5a9e7e' },
+  { name: 'Teal',     value: '#4f9e96' },
+  { name: 'Sky',      value: '#5a8fad' },
+  { name: 'Indigo',   value: '#7a7eb8' },
+  { name: 'Violet',   value: '#9478b8' },
+  { name: 'Fuchsia',  value: '#b06aad' },
+  { name: 'Pink',     value: '#b87090' },
+] as const
+
+// ── 15 Category Colors ──
+export const CATEGORY_COLORS = [
+  { name: 'Red',       value: '#ef4444' },
+  { name: 'Orange',    value: '#f97316' },
+  { name: 'Amber',     value: '#f59e0b' },
+  { name: 'Yellow',    value: '#eab308' },
+  { name: 'Lime',      value: '#84cc16' },
+  { name: 'Green',     value: '#22c55e' },
+  { name: 'Emerald',   value: '#10b981' },
+  { name: 'Teal',      value: '#14b8a6' },
+  { name: 'Cyan',      value: '#06b6d4' },
+  { name: 'Sky',       value: '#0ea5e9' },
+  { name: 'Blue',      value: '#3b82f6' },
+  { name: 'Indigo',    value: '#6366f1' },
+  { name: 'Violet',    value: '#8b5cf6' },
+  { name: 'Purple',    value: '#a855f7' },
+  { name: 'Pink',      value: '#ec4899' },
+] as const
+
+export interface Category {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export interface Task {
   id: Id;
   listId: Id;
@@ -9,6 +50,7 @@ export interface Task {
   dueDate?: string;
   priority?: 'Low' | 'Medium' | 'High';
   position: number;
+  categories?: Category[];
   comments?: {
     id: string;
     content: string;
@@ -22,6 +64,7 @@ export interface List {
   title: string;
   tasks: Task[];
   position: number;
+  color?: string;
 }
 
 export const initialData: List[] = [

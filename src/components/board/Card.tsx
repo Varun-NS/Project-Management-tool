@@ -23,17 +23,34 @@ export function Card({ task, index, onClick }: CardProps) {
             snapshot.isDragging ? 'shadow-md ring-1 ring-primary/50' : ''
           }`}
         >
-          {task.priority && (
-            <Badge 
-              variant="outline" 
-              className={`mb-2 text-[10px] uppercase font-semibold tracking-wider ${
-                task.priority === 'High' ? 'text-destructive border-destructive/30 bg-destructive/10' :
-                task.priority === 'Medium' ? 'text-amber-500 border-amber-500/30 bg-amber-500/10' :
-                'text-emerald-500 border-emerald-500/30 bg-emerald-500/10'
-              }`}
-            >
-              {task.priority}
-            </Badge>
+          {/* Category + Priority Badges (inline) */}
+          {((task.categories && task.categories.length > 0) || task.priority) && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {task.categories?.map((cat) => (
+                <span
+                  key={cat.id}
+                  className="inline-flex items-center text-[10px] font-semibold px-2.5 py-0.5 rounded-full transition-all hover:opacity-80"
+                  style={{ 
+                    backgroundColor: `${cat.color}18`,
+                    color: cat.color,
+                    border: `1px solid ${cat.color}30`
+                  }}
+                >
+                  {cat.name}
+                </span>
+              ))}
+              {task.priority && (
+                <span
+                  className={`inline-flex items-center text-[10px] font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                    task.priority === 'High' ? 'text-destructive border border-destructive/30 bg-destructive/10' :
+                    task.priority === 'Medium' ? 'text-amber-500 border border-amber-500/30 bg-amber-500/10' :
+                    'text-emerald-500 border border-emerald-500/30 bg-emerald-500/10'
+                  }`}
+                >
+                  {task.priority}
+                </span>
+              )}
+            </div>
           )}
           
           <h4 className="text-sm font-medium leading-snug mb-3">
@@ -50,7 +67,7 @@ export function Card({ task, index, onClick }: CardProps) {
               )}
               <div className="flex items-center gap-1 text-xs">
                 <MessageSquare className="w-3 h-3" />
-                <span>0</span>
+                <span>{task.comments?.length || 0}</span>
               </div>
             </div>
 
