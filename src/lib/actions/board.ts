@@ -173,8 +173,13 @@ export async function createList(boardId: string, title: string, position: numbe
 
 export async function deleteList(listId: string) {
   const supabase = await getSupabase()
+  console.log("Attempting to delete list:", listId)
   const { error } = await supabase.from('lists').delete().eq('id', listId)
-  if (error) throw new Error(error.message)
+  if (error) {
+    console.error("Error deleting list:", error)
+    throw new Error(error.message)
+  }
+  console.log("Successfully deleted list:", listId)
 }
 
 export async function renameList(listId: string, title: string) {

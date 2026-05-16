@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 interface ListProps {
   list: ListType
@@ -31,6 +32,7 @@ export function List({ list, index, onTaskClick, boardId, setLists }: ListProps)
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [listTitle, setListTitle] = useState(list.title)
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
   const handleAddCard = async () => {
     if (!newCardTitle.trim()) return
@@ -65,7 +67,7 @@ export function List({ list, index, onTaskClick, boardId, setLists }: ListProps)
   }
 
   const handleDeleteList = async () => {
-    if (!confirm("Are you sure you want to delete this list?")) return
+    setIsDeleteDialogOpen(false)
     
     // Optimistic update
     setLists(prev => prev.filter(l => l.id !== list.id))
@@ -168,7 +170,7 @@ export function List({ list, index, onTaskClick, boardId, setLists }: ListProps)
                   <Palette className="w-4 h-4 mr-2" /> Color
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleDeleteList} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
+                <DropdownMenuItem onClick={() => setIsDeleteDialogOpen(true)} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
                   <Trash2 className="w-4 h-4 mr-2" /> Delete List
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -216,6 +218,22 @@ export function List({ list, index, onTaskClick, boardId, setLists }: ListProps)
                 </div>
               </PopoverContent>
             </Popover>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Are you sure you want to delete this list?</DialogTitle>
+                  <DialogDescription>
+                    This action cannot be undone. This will permanently delete the list "{list.title}" and all of its associated data.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>
+                  <Button variant="destructive" onClick={handleDeleteList}>Delete List</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
 
           <Droppable droppableId={list.id} type="task">
@@ -233,11 +251,11 @@ export function List({ list, index, onTaskClick, boardId, setLists }: ListProps)
                 {provided.placeholder}
                 
                 {isAddingCard && (
-                  <div className="rounded-xl p-3.5 shadow-sm space-y-3" style={{ backgroundColor: '#ffffff', border: '1px solid rgba(0,0,0,0.06)' }}>
+                  <div className="rounded-xl p-3.5 shadow-sm space-y-3 bg-card border border-border/50">
                     <Textarea 
                       autoFocus
                       placeholder="Enter a title for this card..."
-                      className="min-h-[60px] text-sm resize-none border-0 focus-visible:ring-0 p-0"
+                      className="min-h-[60px] text-sm resize-none border-0 focus-visible:ring-0 p-0 bg-transparent text-card-foreground"
                       value={newCardTitle}
                       onChange={(e) => setNewCardTitle(e.target.value)}
                       onKeyDown={(e) => {

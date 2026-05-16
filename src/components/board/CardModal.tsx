@@ -371,37 +371,7 @@ function CardModalContent({ task, isOpen, onClose, setLists, lists, boardCategor
     }
   }
 
-  const handleCopyCard = async () => {
-    const newTitle = `${task.content} (Copy)`
-    const newPosition = parentList && parentList.tasks.length > 0 
-      ? parentList.tasks[parentList.tasks.length - 1].position + 65536 
-      : 65536
 
-    const tempId = `temp-${Date.now()}`
-    const copiedTask = { ...task, id: tempId, content: newTitle, position: newPosition }
-    
-    setLists(prev => prev.map(list => {
-      if (list.id === task.listId) {
-        return { ...list, tasks: [...list.tasks, copiedTask] }
-      }
-      return list
-    }))
-    onClose()
-
-    try {
-      // In a real app we'd copy description etc. For now we use createCard
-      const data = await createCard(task.listId, newTitle, newPosition)
-      setLists(prev => prev.map(list => {
-        if (list.id === task.listId) {
-          return { ...list, tasks: list.tasks.map(t => t.id === tempId ? { ...t, id: data.id } : t) }
-        }
-        return list
-      }))
-      toast.success("Card copied")
-    } catch (error) {
-      toast.error("Failed to copy card")
-    }
-  }
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && !isDeletingCard && onClose()}>
@@ -882,9 +852,7 @@ function CardModalContent({ task, isOpen, onClose, setLists, lists, boardCategor
                     </DropdownMenuContent>
                   </DropdownMenu>
 
-                  <Button variant="secondary" className="w-full justify-start h-9 px-3 font-medium bg-muted/40 hover:bg-muted text-foreground/80 hover:text-foreground" onClick={handleCopyCard}>
-                    <Copy className="w-4 h-4 mr-2.5 opacity-70" /> Copy
-                  </Button>
+
 
                   <Button 
                     variant="ghost" 
