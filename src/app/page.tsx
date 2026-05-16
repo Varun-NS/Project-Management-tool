@@ -1,7 +1,6 @@
 import { Board } from '@/components/board/Board'
-import { Button } from '@/components/ui/button'
-import { Users } from 'lucide-react'
-import { getUserBoards, createBoard } from '@/lib/actions/board'
+import { BoardMembers } from '@/components/board/BoardMembers'
+import { getUserBoards, createBoard, getCurrentUser } from '@/lib/actions/board'
 import { redirect } from 'next/navigation'
 
 export default async function Home(props: { searchParams: Promise<{ boardId?: string }> }) {
@@ -18,6 +17,7 @@ export default async function Home(props: { searchParams: Promise<{ boardId?: st
   }
 
   const activeBoard = boards.find(b => b.id === searchParams.boardId) || boards[0]
+  const currentUser = await getCurrentUser()
 
   return (
     <div className="flex flex-col h-full">
@@ -26,10 +26,11 @@ export default async function Home(props: { searchParams: Promise<{ boardId?: st
         <div className="flex items-center gap-3">
           <h1 className="text-lg font-bold tracking-tight">{activeBoard.title}</h1>
           <div className="w-px h-5 bg-border/50" />
-          <Button variant="secondary" size="sm" className="hidden md:flex h-8 text-xs">
-            <Users className="w-3.5 h-3.5 mr-1.5" />
-            Team
-          </Button>
+          <BoardMembers
+            boardId={activeBoard.id}
+            ownerId={activeBoard.created_by}
+            currentUser={currentUser}
+          />
         </div>
       </div>
 

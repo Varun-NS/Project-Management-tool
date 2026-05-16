@@ -105,8 +105,8 @@ export function Board({ boardId }: { boardId: string }) {
 
       try {
         await updateListPositions(updates)
-      } catch (error) {
-        toast.error("Order saved locally. Database not connected.")
+      } catch (error: any) {
+        toast.error(error.message || "Order saved locally. Database not connected.")
         // Removing the revert so UI stays functional for demo
       }
       return
@@ -125,8 +125,8 @@ export function Board({ boardId }: { boardId: string }) {
     const destTasks = source.droppableId === destination.droppableId ? sourceTasks : Array.from(destList.tasks)
 
     const [removedTask] = sourceTasks.splice(source.index, 1)
-    removedTask.listId = destination.droppableId
-    destTasks.splice(destination.index, 0, removedTask)
+    const movedTask = { ...removedTask, listId: destination.droppableId }
+    destTasks.splice(destination.index, 0, movedTask)
 
     newLists[sourceListIndex] = { ...sourceList, tasks: sourceTasks }
     if (source.droppableId !== destination.droppableId) {
@@ -144,8 +144,8 @@ export function Board({ boardId }: { boardId: string }) {
 
     try {
       await updateCardPositions(updates)
-    } catch (error) {
-      toast.error("Moved locally. Database not connected.")
+    } catch (error: any) {
+      toast.error(error.message || "Moved locally. Database not connected.")
       // Removing the revert so UI stays functional for demo
     }
   }
@@ -185,7 +185,7 @@ export function Board({ boardId }: { boardId: string }) {
   if (!isMounted) return null
 
   return (
-    <>
+    <div className="flex h-full min-h-0 flex-col">
       {/* Filter Bar */}
       <div className="flex items-center gap-3 px-6 py-2.5 border-b border-border/30 bg-background/30 backdrop-blur-sm shrink-0">
         <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
@@ -275,7 +275,7 @@ export function Board({ boardId }: { boardId: string }) {
             <div
               {...provided.droppableProps}
               ref={provided.innerRef}
-              className="flex gap-4 h-full p-6 items-start overflow-x-auto"
+              className="flex flex-1 gap-4 p-6 items-start overflow-x-auto"
             >
               {filteredLists.map((list, index) => (
                 <ListComponent 
@@ -330,6 +330,6 @@ export function Board({ boardId }: { boardId: string }) {
         setBoardCategories={setBoardCategories}
         boardId={boardId}
       />
-    </>
+    </div>
   )
 }

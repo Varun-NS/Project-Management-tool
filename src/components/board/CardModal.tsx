@@ -2,16 +2,16 @@
 
 import * as React from 'react'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
-import { Task, List as ListType, Category, CATEGORY_COLORS } from '@/lib/mocks/board-data'
+import { Task, List as ListType, Category, CATEGORY_COLORS, BoardMember } from '@/lib/mocks/board-data'
 import { Badge } from '@/components/ui/badge'
-import { CalendarIcon, Clock, AlignLeft, Users, Tag, CreditCard, ArrowRight, Copy, Trash2, ListMinus, MessageSquare, X, Palette, Check } from 'lucide-react'
+import { CalendarIcon, AlignLeft, Users, Tag, CreditCard, ArrowRight, Copy, Trash2, ListMinus, MessageSquare, X, Palette, Check, UserX } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
-import { updateCardDetails, deleteCard, createCard, createComment, updateBoardCategories } from '@/lib/actions/board'
+import { updateCardDetails, updateCardAssignees, deleteCard, createCard, createComment, updateBoardCategories, getBoardMembers } from '@/lib/actions/board'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuGroup } from '@/components/ui/dropdown-menu'
@@ -27,13 +27,39 @@ interface CardModalProps {
   boardId: string
 }
 
-export function CardModal({ task, isOpen, onClose, setLists, lists, boardCategories, setBoardCategories, boardId }: CardModalProps) {
+type ActiveCardModalProps = Omit<CardModalProps, 'task'> & {
+  task: Task
+}
+
+function getInitials(name?: string | null, email?: string | null) {
+  const source = (name || email || 'User').trim()
+  const parts = source
+    .replace(/@.*/, '')
+    .split(/[\s._-]+/)
+    .filter(Boolean)
+
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+  return source.slice(0, 2).toUpperCase()
+}
+
+export function CardModal(props: CardModalProps) {
+  if (!props.task) return null
+
+  return <CardModalContent {...props} task={props.task} />
+}
+
+function CardModalContent({ task, isOpen, onClose, setLists, lists, boardCategories, setBoardCategories, boardId }: ActiveCardModalProps) {
   const [comment, setComment] = React.useState('')
   const [isEditingTitle, setIsEditingTitle] = React.useState(false)
   const [title, setTitle] = React.useState('')
   const [isEditingDescription, setIsEditingDescription] = React.useState(false)
   const [description, setDescription] = React.useState('')
   const [isCategoryOpen, setIsCategoryOpen] = React.useState(false)
+  const [isMembersOpen, setIsMembersOpen] = React.useState(false)
+  const [boardMembers, setBoardMembers] = React.useState<BoardMember[]>([])
+  const [isLoadingMembers, setIsLoadingMembers] = React.useState(false)
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = React.useState(false)
+  const [isDeletingCard, setIsDeletingCard] = React.useState(false)
   const [newCategoryName, setNewCategoryName] = React.useState('')
   const [newCategoryColor, setNewCategoryColor] = React.useState<string>(CATEGORY_COLORS[0].value)
 
@@ -41,10 +67,25 @@ export function CardModal({ task, isOpen, onClose, setLists, lists, boardCategor
     if (task) {
       setTitle(task.content)
       setDescription(task.description || '')
+      setIsDeleteConfirmOpen(false)
     }
   }, [task])
 
-  if (!task) return null
+  const loadBoardMembers = React.useCallback(async () => {
+    try {
+      setIsLoadingMembers(true)
+      const data = await getBoardMembers(boardId)
+      setBoardMembers((data.members as BoardMember[]).filter(member => Boolean(member.user)))
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to load board members')
+    } finally {
+      setIsLoadingMembers(false)
+    }
+  }, [boardId])
+
+  React.useEffect(() => {
+    if (isMembersOpen) loadBoardMembers()
+  }, [isMembersOpen, loadBoardMembers])
 
   const parentList = lists.find(l => l.id === task.listId)
 
@@ -149,22 +190,26 @@ export function CardModal({ task, isOpen, onClose, setLists, lists, boardCategor
   }
 
   const handleDeleteCard = async () => {
-    if (!confirm("Are you sure you want to delete this card?")) return
+    if (isDeletingCard) return
 
-    // Optimistic delete
-    setLists(prev => prev.map(list => {
-      if (list.id === task.listId) {
-        return { ...list, tasks: list.tasks.filter(t => t.id !== task.id) }
-      }
-      return list
-    }))
-    onClose()
+    const deletedTask = task
+    setIsDeletingCard(true)
 
     try {
-      await deleteCard(task.id)
+      await deleteCard(deletedTask.id)
+      setLists(prev => prev.map(list => {
+        if (list.id === deletedTask.listId) {
+          return { ...list, tasks: list.tasks.filter(t => t.id !== deletedTask.id) }
+        }
+        return list
+      }))
+      setIsDeleteConfirmOpen(false)
+      onClose()
       toast.success("Card deleted")
-    } catch (error) {
-      toast.error("Failed to delete card")
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete card")
+    } finally {
+      setIsDeletingCard(false)
     }
   }
 
@@ -187,6 +232,41 @@ export function CardModal({ task, isOpen, onClose, setLists, lists, boardCategor
       toast.success(priority ? `Priority set to ${priority}` : 'Priority removed')
     } catch (error) {
       toast.error("Failed to update priority")
+    }
+  }
+
+  const handleToggleMember = async (member: BoardMember) => {
+    if (!member.user) return
+
+    const currentAssignees = task.assignees || []
+    const isAssigned = currentAssignees.some(assignee => assignee.id === member.user!.id)
+    const assignee = {
+      id: member.user.id,
+      name: member.user.name || member.user.email || 'Unknown User',
+      avatar: member.user.avatar_url || '',
+    }
+    const nextAssignees = isAssigned
+      ? currentAssignees.filter(current => current.id !== member.user!.id)
+      : [...currentAssignees, assignee]
+
+    updateTaskLocally({ assignees: nextAssignees })
+
+    try {
+      await updateCardAssignees(task.id, nextAssignees.map(nextAssignee => nextAssignee.id))
+      toast.success(isAssigned ? `Removed ${assignee.name}` : `Assigned ${assignee.name}`)
+    } catch (error) {
+      toast.error('Failed to update assignees')
+    }
+  }
+
+  const handleUnassignMember = async () => {
+    updateTaskLocally({ assignees: [] })
+
+    try {
+      await updateCardAssignees(task.id, [])
+      toast.success('Assignees removed')
+    } catch (error) {
+      toast.error('Failed to remove assignees')
     }
   }
 
@@ -286,8 +366,8 @@ export function CardModal({ task, isOpen, onClose, setLists, lists, boardCategor
     try {
       await updateCardDetails(task.id, { list_id: newListId, position: newPosition })
       toast.success("Card moved")
-    } catch (error) {
-      toast.error("Failed to move card")
+    } catch (error: any) {
+      toast.error(error.message || "Failed to move card")
     }
   }
 
@@ -324,10 +404,37 @@ export function CardModal({ task, isOpen, onClose, setLists, lists, boardCategor
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && !isDeletingCard && onClose()}>
       <DialogContent 
         className="w-full sm:max-w-[95vw] md:max-w-[850px] lg:max-w-[1000px] p-0 overflow-hidden bg-card/95 backdrop-blur-xl border-border/50 shadow-2xl rounded-xl sm:rounded-2xl flex flex-col max-h-[90vh]"
       >
+        {isDeleteConfirmOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/70 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-2xl">
+              <h3 className="text-base font-semibold text-foreground">Delete this card?</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                This will permanently delete the card and its comments.
+              </p>
+              <div className="mt-5 flex justify-end gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => setIsDeleteConfirmOpen(false)}
+                  disabled={isDeletingCard}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteCard}
+                  disabled={isDeletingCard}
+                >
+                  {isDeletingCard ? 'Deleting...' : 'Delete'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header Section */}
         <div className="shrink-0 bg-muted/20 px-6 py-5 md:px-8 border-b border-border/40 relative">
           <div className="flex items-start gap-4 pr-8">
@@ -336,7 +443,7 @@ export function CardModal({ task, isOpen, onClose, setLists, lists, boardCategor
               {isEditingTitle ? (
                 <Input 
                   autoFocus
-                  className="text-xl md:text-2xl font-semibold leading-tight bg-background border-border"
+                  className="min-w-0 text-xl md:text-2xl font-semibold leading-tight bg-background border-border"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   onBlur={handleSaveTitle}
@@ -344,14 +451,14 @@ export function CardModal({ task, isOpen, onClose, setLists, lists, boardCategor
                 />
               ) : (
                 <DialogTitle 
-                  className="text-xl md:text-2xl font-semibold leading-tight text-foreground bg-transparent border-none p-0 m-0 w-full focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-md cursor-pointer hover:bg-muted/50 transition-colors"
+                  className="max-w-full whitespace-normal break-words text-xl md:text-2xl font-semibold leading-tight text-foreground bg-transparent border-none p-0 m-0 w-full focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-md cursor-pointer hover:bg-muted/50 transition-colors [overflow-wrap:anywhere]"
                   onClick={() => setIsEditingTitle(true)}
                 >
                   {task.content}
                 </DialogTitle>
               )}
-              <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
-                <p>
+              <div className="flex min-w-0 flex-wrap items-center gap-2 mt-2 text-sm text-muted-foreground">
+                <p className="min-w-0 break-words [overflow-wrap:anywhere]">
                   in list <span className="underline underline-offset-2 cursor-pointer font-medium hover:text-foreground">{parentList?.title || 'Unknown List'}</span>
                 </p>
                 {task.priority && (
@@ -372,7 +479,7 @@ export function CardModal({ task, isOpen, onClose, setLists, lists, boardCategor
         </div>
 
         {/* Scrollable Body */}
-        <ScrollArea className="flex-1 overflow-y-auto">
+        <ScrollArea className="min-h-0 flex-1 overflow-y-auto">
           <div className="p-6 md:p-8 flex flex-col md:flex-row gap-10">
             
             {/* Left Column (Main Content) */}
@@ -385,14 +492,23 @@ export function CardModal({ task, isOpen, onClose, setLists, lists, boardCategor
                     <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Members</h4>
                     <div className="flex items-center flex-wrap gap-2">
                       {task.assignees.map((assignee) => (
-                        <Avatar key={assignee.id} className="w-8 h-8 md:w-9 md:h-9 border border-border cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
+                        <Avatar
+                          key={assignee.id}
+                          title={assignee.name}
+                          className="w-8 h-8 md:w-9 md:h-9 border border-border cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
+                        >
                           <AvatarImage src={assignee.avatar} />
                           <AvatarFallback className="text-xs bg-primary/10 text-primary font-medium">
                             {assignee.name.charAt(0)}
                           </AvatarFallback>
                         </Avatar>
                       ))}
-                      <Button variant="outline" size="icon" className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-muted/30 border-dashed hover:bg-muted/60 hover:border-primary/50 text-muted-foreground transition-all shrink-0">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setIsMembersOpen(true)}
+                        className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-muted/30 border-dashed hover:bg-muted/60 hover:border-primary/50 text-muted-foreground transition-all shrink-0"
+                      >
                         <PlusIcon className="w-4 h-4" />
                       </Button>
                     </div>
@@ -426,7 +542,7 @@ export function CardModal({ task, isOpen, onClose, setLists, lists, boardCategor
                       {task.categories.map((cat) => (
                         <span
                           key={cat.id}
-                          className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full cursor-pointer group/cat transition-all hover:opacity-80"
+                          className="inline-flex max-w-full items-center gap-1 break-words text-xs font-semibold px-2.5 py-1 rounded-full cursor-pointer group/cat transition-all hover:opacity-80 [overflow-wrap:anywhere]"
                           style={{ backgroundColor: `${cat.color}20`, color: cat.color, border: `1px solid ${cat.color}35` }}
                         >
                           {cat.name}
@@ -472,7 +588,7 @@ export function CardModal({ task, isOpen, onClose, setLists, lists, boardCategor
                       onClick={() => setIsEditingDescription(true)}
                     >
                       {task.description ? (
-                        <p className="whitespace-pre-wrap">{task.description}</p>
+                        <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{task.description}</p>
                       ) : (
                         <span className="text-muted-foreground">Add a more detailed description...</span>
                       )}
@@ -497,7 +613,7 @@ export function CardModal({ task, isOpen, onClose, setLists, lists, boardCategor
                   {/* Comment Input */}
                   <div className="flex gap-4">
                     <Avatar className="w-8 h-8 mt-1 shrink-0">
-                      <AvatarFallback className="text-xs bg-primary/20 text-primary font-medium">VN</AvatarFallback>
+                      <AvatarFallback className="text-xs bg-primary/20 text-primary font-medium">Y</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 space-y-3">
                       <div className="bg-card border border-border focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all rounded-xl shadow-sm overflow-hidden">
@@ -543,7 +659,7 @@ export function CardModal({ task, isOpen, onClose, setLists, lists, boardCategor
                                 {new Date(c.createdAt).toLocaleDateString()}
                               </span>
                             </div>
-                            <div className="bg-muted/30 border border-border/40 p-3 rounded-xl rounded-tl-none text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">
+                            <div className="bg-muted/30 border border-border/40 p-3 rounded-xl rounded-tl-none text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                               {c.content}
                             </div>
                             <div className="flex items-center gap-3 pt-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -570,9 +686,63 @@ export function CardModal({ task, isOpen, onClose, setLists, lists, boardCategor
               <div className="space-y-3">
                 <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest px-1">Add to card</h4>
                 <div className="flex flex-col gap-2">
-                  <Button variant="secondary" className="w-full justify-start h-9 px-3 font-medium bg-muted/40 hover:bg-muted text-foreground/80 hover:text-foreground" onClick={() => toast.success('Add Members clicked', { description: 'Needs User Auth integration.' })}>
-                    <Users className="w-4 h-4 mr-2.5 opacity-70" /> Members
-                  </Button>
+                  <Popover open={isMembersOpen} onOpenChange={setIsMembersOpen}>
+                    <PopoverTrigger className="w-full inline-flex items-center justify-start h-9 px-3 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-muted/40 hover:bg-muted text-foreground/80 hover:text-foreground">
+                      <Users className="w-4 h-4 mr-2.5 opacity-70" /> Members
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-[300px] p-0" sideOffset={8}>
+                      <div className="p-3 border-b border-border/40">
+                        <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Assign members</h4>
+                      </div>
+                      <div className="max-h-[320px] overflow-y-auto p-2">
+                        {isLoadingMembers ? (
+                          <div className="px-3 py-6 text-center text-sm text-muted-foreground">Loading members...</div>
+                        ) : boardMembers.length > 0 ? (
+                          <div className="space-y-1">
+                            {boardMembers.map((member) => {
+                              const user = member.user!
+                              const isAssigned = task.assignees?.some(assignee => assignee.id === user.id)
+                              const name = user.name || user.email || 'Unknown User'
+
+                              return (
+                                <button
+                                  key={member.id}
+                                  type="button"
+                                  onClick={() => handleToggleMember(member)}
+                                  className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted/60"
+                                >
+                                  <Avatar>
+                                    {user.avatar_url && <AvatarImage src={user.avatar_url} alt={name} />}
+                                    <AvatarFallback>{getInitials(user.name, user.email)}</AvatarFallback>
+                                  </Avatar>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="truncate text-sm font-medium">{name}</div>
+                                    <div className="truncate text-xs text-muted-foreground">{user.email}</div>
+                                  </div>
+                                  {isAssigned && <Check className="h-4 w-4 text-primary" />}
+                                </button>
+                              )
+                            })}
+
+                            {(task.assignees?.length || 0) > 0 && (
+                              <button
+                                type="button"
+                                onClick={handleUnassignMember}
+                                className="mt-2 flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-destructive transition-colors hover:bg-destructive/10"
+                              >
+                                <UserX className="h-4 w-4" />
+                                Remove assignee
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                            Invite members to this board before assigning cards.
+                          </div>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
 
                   <DropdownMenu>
                     <DropdownMenuTrigger className="w-full inline-flex items-center justify-start h-9 px-3 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-muted/40 hover:bg-muted text-foreground/80 hover:text-foreground">
@@ -719,7 +889,7 @@ export function CardModal({ task, isOpen, onClose, setLists, lists, boardCategor
                   <Button 
                     variant="ghost" 
                     className="w-full justify-start h-9 px-3 font-medium text-destructive hover:bg-destructive/10 hover:text-destructive transition-all"
-                    onClick={handleDeleteCard}
+                    onClick={() => setIsDeleteConfirmOpen(true)}
                   >
                     <Trash2 className="w-4 h-4 mr-2.5 opacity-70" /> Delete
                   </Button>
@@ -742,5 +912,3 @@ function PlusIcon({ className }: { className?: string }) {
     </svg>
   )
 }
-
-

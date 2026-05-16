@@ -11,10 +11,32 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 const GRADIENT_CARDS = BACKGROUND_COLORS.slice(0, 10)
 const SOLID_COLORS = BACKGROUND_COLORS.slice(10, 20)
 
-export function AvatarMenu() {
+type AvatarMenuUser = {
+  id: string
+  name?: string | null
+  email?: string | null
+  avatar_url?: string | null
+} | null
+
+function getInitials(name?: string | null, email?: string | null) {
+  const source = (name || email || 'User').trim()
+  const parts = source
+    .replace(/@.*/, '')
+    .split(/[\s._-]+/)
+    .filter(Boolean)
+
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+  }
+
+  return source.slice(0, 2).toUpperCase()
+}
+
+export function AvatarMenu({ user }: { user: AvatarMenuUser }) {
   const { background, setBackground } = useBackground()
   const [isOpen, setIsOpen] = React.useState(false)
   const [showColors, setShowColors] = React.useState(false)
+  const initials = getInitials(user?.name, user?.email)
 
   const selectColor = (value: string) => {
     setBackground(value)
@@ -26,14 +48,21 @@ export function AvatarMenu() {
     <Popover open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) setShowColors(false) }}>
       <PopoverTrigger className="focus-visible:outline-none rounded-full">
         <Avatar className="h-8 w-8 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
-          <AvatarImage src="" />
-          <AvatarFallback className="bg-primary/10 text-primary text-xs">VN</AvatarFallback>
+          {user?.avatar_url && <AvatarImage src={user.avatar_url} alt={user.name || user.email || 'User'} />}
+          <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">{initials}</AvatarFallback>
         </Avatar>
       </PopoverTrigger>
       <PopoverContent align="end" className="p-0" sideOffset={8} style={{ width: 360 }}>
         {!showColors ? (
           <div className="p-1.5">
-            <div className="px-2.5 py-2 text-xs font-medium text-muted-foreground">My Account</div>
+            <div className="px-2.5 py-2">
+              <div className="text-xs font-medium text-muted-foreground">My Account</div>
+              {user?.email && (
+                <div className="mt-1 truncate text-sm font-medium text-foreground">
+                  {user.name || user.email}
+                </div>
+              )}
+            </div>
             <div className="h-px bg-border/50 mx-1 my-1" />
             <button
               onClick={() => setShowColors(true)}

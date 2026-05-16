@@ -1,0 +1,31 @@
+<svg width="56" height="56" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">FlowSphere mark</title>
+  <desc id="desc">A blue circular FlowSphere mark with flowing white ribbon.</desc>
+  <defs>
+    <linearGradient id="top" x1="15" y1="5" x2="43" y2="47" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22D3EE"/>
+      <stop offset="0.5" stop-color="#2384FF"/>
+      <stop offset="1" stop-color="#1D36C9"/>
+    </linearGradient>
+    <linearGradient id="bottom" x1="11" y1="23" x2="44" y2="53" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#071641"/>
+      <stop offset="0.56" stop-color="#173ECE"/>
+      <stop offset="1" stop-color="#1D8BFF"/>
+    </linearGradient>
+  </defs>
+  <circle cx="28" cy="28" r="25" fill="url(#top)"/>
+  <path
+    d="M5.7 30.2C8.6 42.1 19.4 51 32.2 51C42 51 50.6 45.9 55.4 38.2C49.1 39.5 43.7 38 38.5 35.5C33 32.9 27.7 29.5 21.2 27.6C15.3 25.9 10.2 26.5 5.7 30.2Z"
+    fill="url(#bottom)"
+  />
+  <path
+    d="M5 27.3C10.3 23.2 16.5 23 23.8 25.3C30 27.2 35.4 30.8 41.1 33.1C45.5 34.9 49.6 35.2 53.2 32.8C54.1 31.7 54.8 29.5 54.9 28.1C47.1 30.5 40.1 27.5 33.5 23.6C26.7 19.6 20.2 14.8 12.7 16.7C8.6 17.7 5.8 21.4 5 27.3Z"
+    fill="white"
+    opacity="0.97"
+  />
+  <path
+    d="M6 25.4C11.7 20 18.4 20.5 26 24.2C32.8 27.6 40.2 32.5 52.6 27.3C52.5 26.5 52.4 25.8 52.2 25C47.8 28 41.5 27.3 34.4 23.2C26.7 18.7 19 12.9 10.7 16.7C8.6 18.8 7 21.8 6 25.4Z"
+    fill="#05123D"
+    opacity="0.88"
+  />
+</svg>

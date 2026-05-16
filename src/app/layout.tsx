@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
-import { Sidebar } from "@/components/layout/Sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { BackgroundProvider } from "@/components/providers/BackgroundProvider";
 import { MainArea } from "@/components/layout/MainArea";
@@ -10,8 +9,8 @@ import { MainArea } from "@/components/layout/MainArea";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Project Management Tool",
-  description: "A modern, intuitive project management tool.",
+  title: "FlowSphere",
+  description: "A modern, intuitive project management workspace.",
 };
 
 export default function RootLayout({
@@ -25,10 +24,7 @@ export default function RootLayout({
         <BackgroundProvider>
           <div className="flex flex-col h-screen">
             <Header />
-            <div className="flex flex-1 overflow-hidden">
-              <Sidebar />
-              <MainArea>{children}</MainArea>
-            </div>
+            <MainArea>{children}</MainArea>
           </div>
           <Toaster />
         </BackgroundProvider>

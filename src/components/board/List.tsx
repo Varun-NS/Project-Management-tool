@@ -123,15 +123,15 @@ export function List({ list, index, onTaskClick, boardId, setLists }: ListProps)
         >
           <div 
             {...provided.dragHandleProps}
-            className={`p-3 flex items-center justify-between group cursor-grab active:cursor-grabbing ${
+            className={`p-3 flex items-start justify-between group cursor-grab active:cursor-grabbing ${
               list.color ? 'text-white' : ''
             }`}
           >
-            <div className="flex items-center gap-2 flex-1 mr-2">
+            <div className="flex min-w-0 items-start gap-2 flex-1 mr-2">
               {isEditingTitle ? (
                 <Input 
                   autoFocus
-                  className="h-7 text-sm font-semibold px-2"
+                  className="min-w-0 text-sm font-semibold px-2"
                   value={listTitle}
                   onChange={(e) => setListTitle(e.target.value)}
                   onBlur={handleRenameList}
@@ -139,7 +139,7 @@ export function List({ list, index, onTaskClick, boardId, setLists }: ListProps)
                 />
               ) : (
                 <h3 
-                  className={`font-semibold text-sm px-1 cursor-pointer rounded flex-1 ${
+                  className={`min-w-0 flex-1 cursor-pointer rounded px-1 text-sm font-semibold leading-snug whitespace-normal break-words [overflow-wrap:anywhere] ${
                     list.color ? 'hover:bg-white/15' : 'hover:bg-muted/50'
                   }`}
                   onClick={() => setIsEditingTitle(true)}
@@ -147,7 +147,7 @@ export function List({ list, index, onTaskClick, boardId, setLists }: ListProps)
                   {list.title}
                 </h3>
               )}
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 mt-0.5 ${
                 list.color ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'
               }`}>
                 {list.tasks.length}
@@ -155,7 +155,7 @@ export function List({ list, index, onTaskClick, boardId, setLists }: ListProps)
             </div>
             
             <DropdownMenu>
-              <DropdownMenuTrigger className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 w-6 ${
+              <DropdownMenuTrigger className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 w-6 shrink-0 ${
                 list.color ? 'text-white/70 hover:text-white hover:bg-white/15' : 'text-muted-foreground'
               }`}>
                 <MoreHorizontal className="h-4 w-4" />
@@ -233,7 +233,7 @@ export function List({ list, index, onTaskClick, boardId, setLists }: ListProps)
                 {provided.placeholder}
                 
                 {isAddingCard && (
-                  <div className="bg-card rounded-lg p-3 shadow-sm border border-border space-y-3">
+                  <div className="rounded-xl p-3.5 shadow-sm space-y-3" style={{ backgroundColor: '#ffffff', border: '1px solid rgba(0,0,0,0.06)' }}>
                     <Textarea 
                       autoFocus
                       placeholder="Enter a title for this card..."

@@ -67,6 +67,29 @@ export interface List {
   color?: string;
 }
 
+export interface BoardMember {
+  id: string;
+  user_id: string;
+  board_id: string;
+  role: 'owner' | 'editor' | 'viewer';
+  created_at: string;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    avatar_url: string | null;
+  };
+}
+
+export interface BoardInvite {
+  id: string;
+  board_id: string;
+  email: string;
+  role: 'editor' | 'viewer';
+  invited_by: string;
+  created_at: string;
+}
+
 export const initialData: List[] = [
   {
     id: 'list-1',
