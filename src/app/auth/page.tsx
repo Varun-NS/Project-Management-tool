@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { LayoutDashboard } from 'lucide-react'
-import { login, signup } from './actions'
+import { login, signup, resetPassword } from './actions'
 import { toast } from 'sonner'
 
 export default function AuthPage() {
@@ -19,6 +19,30 @@ export default function AuthPage() {
       const result = isLogin ? await login(formData) : await signup(formData)
       if (result?.error) {
         toast.error(result.error)
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  async function handleForgotPassword() {
+    const emailInput = document.getElementById('email') as HTMLInputElement
+    const email = emailInput?.value
+
+    if (!email) {
+      toast.error('Please enter your email address first to reset your password.')
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      const formData = new FormData()
+      formData.append('email', email)
+      const result = await resetPassword(formData)
+      if (result?.error) {
+        toast.error(result.error)
+      } else {
+        toast.success('Password reset link sent to your email! Please check your inbox.')
       }
     } finally {
       setIsLoading(false)
@@ -89,7 +113,12 @@ export default function AuthPage() {
               <div className="flex items-center justify-between">
                 <Label htmlFor="password" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Password</Label>
                 {isLogin && (
-                  <button type="button" className="text-xs font-medium text-primary hover:underline underline-offset-4">
+                  <button 
+                    type="button" 
+                    onClick={handleForgotPassword}
+                    disabled={isLoading}
+                    className="text-xs font-medium text-primary hover:underline underline-offset-4 disabled:opacity-50"
+                  >
                     Forgot password?
                   </button>
                 )}
