@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { KeyRound } from 'lucide-react'
+import { KeyRound, Loader2 } from 'lucide-react'
 import { updatePassword } from '../actions'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -89,7 +89,12 @@ export default function UpdatePasswordPage() {
             </div>
 
             <Button type="submit" className="w-full h-11 font-medium text-[15px]" disabled={isLoading}>
-              {isLoading ? 'Updating...' : 'Update Password'}
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : 'Update Password'}
             </Button>
           </form>
 

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { LayoutDashboard } from 'lucide-react'
+import { LayoutDashboard, Loader2 } from 'lucide-react'
 import { login, signup, resetPassword } from './actions'
 import { toast } from 'sonner'
 
@@ -133,7 +133,12 @@ export default function AuthPage() {
             </div>
 
             <Button type="submit" className="w-full h-11 font-medium text-[15px]" disabled={isLoading}>
-              {isLoading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Sign Up')}
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Please wait...
+                </>
+              ) : (isLogin ? 'Sign In' : 'Sign Up')}
             </Button>
           </form>
 
