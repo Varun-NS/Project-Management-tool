@@ -33,21 +33,25 @@ export async function Header() {
         </div>
 
         {/* Divider */}
-        <div className="h-8 w-px bg-border/60" />
+        {currentUser && <div className="h-8 w-px bg-border/60" />}
 
         {/* Board Selector + Create Board */}
-        <div className="flex shrink-0 items-center gap-3">
-          <HeaderBoardSelector boards={boards} />
+        {currentUser && (
+          <div className="flex shrink-0 items-center gap-3">
+            <HeaderBoardSelector boards={boards} />
+          </div>
+        )}
+
+      </div>
+
+      {currentUser && (
+        <div className="ml-4 flex shrink-0 items-center gap-3">
+          <Button variant="ghost" size="icon" className="text-muted-foreground">
+            <Bell className="h-5 w-5" />
+          </Button>
+          <AvatarMenu user={currentUser} />
         </div>
-
-      </div>
-
-      <div className="ml-4 flex shrink-0 items-center gap-3">
-        <Button variant="ghost" size="icon" className="text-muted-foreground">
-          <Bell className="h-5 w-5" />
-        </Button>
-        <AvatarMenu user={currentUser} />
-      </div>
+      )}
     </header>
   )
 }
