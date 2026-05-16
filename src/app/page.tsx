@@ -1,11 +1,13 @@
 import { Board } from '@/components/board/Board'
 import { BoardMembers } from '@/components/board/BoardMembers'
-import { getUserBoards, createBoard, getCurrentUser } from '@/lib/actions/board'
+import { getUserBoards, createBoard, getCurrentUser, fetchBoardData, getBoardMembers } from '@/lib/actions/board'
 import { redirect } from 'next/navigation'
 
 export default async function Home(props: { searchParams: Promise<{ boardId?: string }> }) {
-  const searchParams = await props.searchParams
-  const boards = await getUserBoards()
+  const [searchParams, boards] = await Promise.all([
+    props.searchParams,
+    getUserBoards(),
+  ])
 
   if (boards.length === 0) {
     const newBoard = await createBoard('My First Board')
@@ -17,7 +19,16 @@ export default async function Home(props: { searchParams: Promise<{ boardId?: st
   }
 
   const activeBoard = boards.find(b => b.id === searchParams.boardId) || boards[0]
-  const currentUser = await getCurrentUser()
+  
+  const [currentUser, boardData, membersData] = await Promise.all([
+    getCurrentUser(),
+    fetchBoardData(activeBoard.id),
+    getBoardMembers(activeBoard.id),
+  ])
+
+  const initialMembers = membersData.members.map((m: any) => m.user).filter(Boolean)
+  const currentUserMember = membersData.members.find((m: any) => m.user_id === currentUser?.id)
+  const initialIsViewer = currentUserMember?.role === 'viewer'
 
   return (
     <div className="flex flex-col h-full">
@@ -36,7 +47,15 @@ export default async function Home(props: { searchParams: Promise<{ boardId?: st
 
       {/* Board Content */}
       <div className="flex-1 overflow-hidden">
-        <Board boardId={activeBoard.id} />
+        <Board 
+          key={activeBoard.id}
+          boardId={activeBoard.id} 
+          currentUserId={currentUser?.id} 
+          initialLists={boardData.lists}
+          initialCategories={boardData.boardCategories || []}
+          initialMembers={initialMembers}
+          initialIsViewer={initialIsViewer}
+        />
       </div>
     </div>
   )

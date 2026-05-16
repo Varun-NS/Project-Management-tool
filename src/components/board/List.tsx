@@ -24,9 +24,10 @@ interface ListProps {
   onTaskClick: (task: Task) => void
   boardId: string | null
   setLists: React.Dispatch<React.SetStateAction<ListType[]>>
+  isViewer?: boolean
 }
 
-export function List({ list, index, onTaskClick, boardId, setLists }: ListProps) {
+export function List({ list, index, onTaskClick, boardId, setLists, isViewer }: ListProps) {
   const [isAddingCard, setIsAddingCard] = useState(false)
   const [newCardTitle, setNewCardTitle] = useState('')
   const [isEditingTitle, setIsEditingTitle] = useState(false)
@@ -141,10 +142,10 @@ export function List({ list, index, onTaskClick, boardId, setLists }: ListProps)
                 />
               ) : (
                 <h3 
-                  className={`min-w-0 flex-1 cursor-pointer rounded px-1 text-sm font-semibold leading-snug whitespace-normal break-words [overflow-wrap:anywhere] ${
-                    list.color ? 'hover:bg-white/15' : 'hover:bg-muted/50'
+                  className={`min-w-0 flex-1 rounded px-1 text-sm font-semibold leading-snug whitespace-normal break-words [overflow-wrap:anywhere] ${
+                    isViewer ? '' : list.color ? 'cursor-pointer hover:bg-white/15' : 'cursor-pointer hover:bg-muted/50'
                   }`}
-                  onClick={() => setIsEditingTitle(true)}
+                  onClick={() => !isViewer && setIsEditingTitle(true)}
                 >
                   {list.title}
                 </h3>
@@ -156,25 +157,27 @@ export function List({ list, index, onTaskClick, boardId, setLists }: ListProps)
               </span>
             </div>
             
-            <DropdownMenu>
-              <DropdownMenuTrigger className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 w-6 shrink-0 ${
-                list.color ? 'text-white/70 hover:text-white hover:bg-white/15' : 'text-muted-foreground'
-              }`}>
-                <MoreHorizontal className="h-4 w-4" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40">
-                <DropdownMenuItem onClick={() => setIsEditingTitle(true)}>
-                  <Edit2 className="w-4 h-4 mr-2" /> Rename
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => { e.preventDefault(); setIsColorPickerOpen(true) }}>
-                  <Palette className="w-4 h-4 mr-2" /> Color
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setIsDeleteDialogOpen(true)} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
-                  <Trash2 className="w-4 h-4 mr-2" /> Delete List
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {!isViewer && (
+              <DropdownMenu>
+                <DropdownMenuTrigger className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 w-6 shrink-0 ${
+                  list.color ? 'text-white/70 hover:text-white hover:bg-white/15' : 'text-muted-foreground'
+                }`}>
+                  <MoreHorizontal className="h-4 w-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuItem onClick={() => setIsEditingTitle(true)}>
+                    <Edit2 className="w-4 h-4 mr-2" /> Rename
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={(e) => { e.preventDefault(); setIsColorPickerOpen(true) }}>
+                    <Palette className="w-4 h-4 mr-2" /> Color
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setIsDeleteDialogOpen(true)} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
+                    <Trash2 className="w-4 h-4 mr-2" /> Delete List
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
             {/* Color Picker Popover */}
             <Popover open={isColorPickerOpen} onOpenChange={setIsColorPickerOpen}>
@@ -246,7 +249,7 @@ export function List({ list, index, onTaskClick, boardId, setLists }: ListProps)
                 }`}
               >
                 {list.tasks.map((task, index) => (
-                  <Card key={task.id} task={task} index={index} onClick={() => onTaskClick(task)} />
+                  <Card key={task.id} task={task} index={index} onClick={() => onTaskClick(task)} isViewer={isViewer} />
                 ))}
                 {provided.placeholder}
                 
@@ -275,7 +278,7 @@ export function List({ list, index, onTaskClick, boardId, setLists }: ListProps)
             )}
           </Droppable>
 
-          {!isAddingCard && (
+          {!isViewer && !isAddingCard && (
             <div className={`p-2 ${
               list.color ? 'border-t border-white/15' : 'border-t border-border/50'
             }`}>

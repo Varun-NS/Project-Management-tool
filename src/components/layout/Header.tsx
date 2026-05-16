@@ -6,8 +6,10 @@ import { HeaderBoardSelector } from './HeaderBoardSelector'
 import { getCurrentUserProfile, getUserBoards } from '@/lib/actions/board'
 
 export async function Header() {
-  const boards = await getUserBoards()
-  const currentUser = await getCurrentUserProfile()
+  const [boards, currentUser] = await Promise.all([
+    getUserBoards(),
+    getCurrentUserProfile(),
+  ])
 
   return (
     <header className="h-14 border-b border-border bg-background flex items-center justify-between px-5 sticky top-0 z-10">

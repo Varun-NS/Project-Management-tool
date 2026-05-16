@@ -25,6 +25,7 @@ interface CardModalProps {
   boardCategories: Category[]
   setBoardCategories: React.Dispatch<React.SetStateAction<Category[]>>
   boardId: string
+  isViewer?: boolean
 }
 
 type ActiveCardModalProps = Omit<CardModalProps, 'task'> & {
@@ -48,7 +49,7 @@ export function CardModal(props: CardModalProps) {
   return <CardModalContent {...props} task={props.task} />
 }
 
-function CardModalContent({ task, isOpen, onClose, setLists, lists, boardCategories, setBoardCategories, boardId }: ActiveCardModalProps) {
+function CardModalContent({ task, isOpen, onClose, setLists, lists, boardCategories, setBoardCategories, boardId, isViewer }: ActiveCardModalProps) {
   const [comment, setComment] = React.useState('')
   const [isEditingTitle, setIsEditingTitle] = React.useState(false)
   const [title, setTitle] = React.useState('')
@@ -421,8 +422,10 @@ function CardModalContent({ task, isOpen, onClose, setLists, lists, boardCategor
                 />
               ) : (
                 <DialogTitle 
-                  className="max-w-full whitespace-normal break-words text-xl md:text-2xl font-semibold leading-tight text-foreground bg-transparent border-none p-0 m-0 w-full focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-md cursor-pointer hover:bg-muted/50 transition-colors [overflow-wrap:anywhere]"
-                  onClick={() => setIsEditingTitle(true)}
+                  className={`max-w-full whitespace-normal break-words text-xl md:text-2xl font-semibold leading-tight text-foreground bg-transparent border-none p-0 m-0 w-full focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-md transition-colors [overflow-wrap:anywhere] ${
+                    isViewer ? '' : 'cursor-pointer hover:bg-muted/50'
+                  }`}
+                  onClick={() => !isViewer && setIsEditingTitle(true)}
                 >
                   {task.content}
                 </DialogTitle>
@@ -473,14 +476,16 @@ function CardModalContent({ task, isOpen, onClose, setLists, lists, boardCategor
                           </AvatarFallback>
                         </Avatar>
                       ))}
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setIsMembersOpen(true)}
-                        className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-muted/30 border-dashed hover:bg-muted/60 hover:border-primary/50 text-muted-foreground transition-all shrink-0"
-                      >
-                        <PlusIcon className="w-4 h-4" />
-                      </Button>
+                      {!isViewer && (
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setIsMembersOpen(true)}
+                          className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-muted/30 border-dashed hover:bg-muted/60 hover:border-primary/50 text-muted-foreground transition-all shrink-0"
+                        >
+                          <PlusIcon className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -516,9 +521,11 @@ function CardModalContent({ task, isOpen, onClose, setLists, lists, boardCategor
                           style={{ backgroundColor: `${cat.color}20`, color: cat.color, border: `1px solid ${cat.color}35` }}
                         >
                           {cat.name}
-                          <button onClick={() => handleRemoveCategory(cat.id)} className="opacity-0 group-hover/cat:opacity-100 transition-opacity ml-0.5">
-                            <X className="w-3 h-3" />
-                          </button>
+                          {!isViewer && (
+                            <button onClick={() => handleRemoveCategory(cat.id)} className="opacity-0 group-hover/cat:opacity-100 transition-opacity ml-0.5">
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
                         </span>
                       ))}
                     </div>
@@ -531,7 +538,7 @@ function CardModalContent({ task, isOpen, onClose, setLists, lists, boardCategor
                 <div className="flex items-center gap-3">
                   <AlignLeft className="w-5 h-5 text-muted-foreground shrink-0" />
                   <h3 className="font-semibold text-lg tracking-tight">Description</h3>
-                  {!isEditingDescription && (
+                  {!isViewer && !isEditingDescription && (
                     <Button variant="secondary" size="sm" className="ml-auto h-7 text-xs font-medium" onClick={() => setIsEditingDescription(true)}>
                       Edit
                     </Button>
@@ -554,8 +561,10 @@ function CardModalContent({ task, isOpen, onClose, setLists, lists, boardCategor
                     </div>
                   ) : (
                     <div 
-                      className="bg-muted/20 hover:bg-muted/40 transition-colors p-4 rounded-xl border border-border/40 text-sm text-foreground/80 leading-relaxed cursor-pointer min-h-[120px]"
-                      onClick={() => setIsEditingDescription(true)}
+                      className={`bg-muted/20 p-4 rounded-xl border border-border/40 text-sm text-foreground/80 leading-relaxed min-h-[120px] ${
+                        isViewer ? '' : 'hover:bg-muted/40 transition-colors cursor-pointer'
+                      }`}
+                      onClick={() => !isViewer && setIsEditingDescription(true)}
                     >
                       {task.description ? (
                         <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{task.description}</p>
@@ -581,36 +590,38 @@ function CardModalContent({ task, isOpen, onClose, setLists, lists, boardCategor
 
                 <div className="pl-8 space-y-6">
                   {/* Comment Input */}
-                  <div className="flex gap-4">
-                    <Avatar className="w-8 h-8 mt-1 shrink-0">
-                      <AvatarFallback className="text-xs bg-primary/20 text-primary font-medium">Y</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 space-y-3">
-                      <div className="bg-card border border-border focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all rounded-xl shadow-sm overflow-hidden">
-                        <Textarea 
-                          placeholder="Write a comment..." 
-                          className="min-h-[80px] border-0 focus-visible:ring-0 resize-none bg-transparent p-3 text-sm"
-                          value={comment}
-                          onChange={(e) => setComment(e.target.value)}
-                        />
-                        <div className="px-3 py-2 bg-muted/20 flex items-center justify-between border-t border-border/40">
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
-                              <MessageSquare className="w-3.5 h-3.5" />
+                  {!isViewer && (
+                    <div className="flex gap-4">
+                      <Avatar className="w-8 h-8 mt-1 shrink-0">
+                        <AvatarFallback className="text-xs bg-primary/20 text-primary font-medium">Y</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 space-y-3">
+                        <div className="bg-card border border-border focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all rounded-xl shadow-sm overflow-hidden">
+                          <Textarea 
+                            placeholder="Write a comment..." 
+                            className="min-h-[80px] border-0 focus-visible:ring-0 resize-none bg-transparent p-3 text-sm"
+                            value={comment}
+                            onChange={(e) => setComment(e.target.value)}
+                          />
+                          <div className="px-3 py-2 bg-muted/20 flex items-center justify-between border-t border-border/40">
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
+                                <MessageSquare className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                            <Button 
+                              size="sm" 
+                              className="h-7 px-3 text-xs font-medium"
+                              onClick={handleSaveComment}
+                              disabled={!comment.trim()}
+                            >
+                              Save
                             </Button>
                           </div>
-                          <Button 
-                            size="sm" 
-                            className="h-7 px-3 text-xs font-medium"
-                            onClick={handleSaveComment}
-                            disabled={!comment.trim()}
-                          >
-                            Save
-                          </Button>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                     {/* Render Real Comments */}
                     <div className="space-y-5">
@@ -632,10 +643,13 @@ function CardModalContent({ task, isOpen, onClose, setLists, lists, boardCategor
                             <div className="bg-muted/30 border border-border/40 p-3 rounded-xl rounded-tl-none text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                               {c.content}
                             </div>
-                            <div className="flex items-center gap-3 pt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button className="text-[11px] font-medium text-muted-foreground hover:text-foreground underline-offset-2 hover:underline transition-all">Edit</button>
-                              <button className="text-[11px] font-medium text-muted-foreground hover:text-foreground underline-offset-2 hover:underline transition-all">Reply</button>
-                            </div>
+                            {/* Only show comment actions if they are the author (currently omitted, but we hide entirely for viewers) */}
+                            {!isViewer && (
+                              <div className="flex items-center gap-3 pt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button className="text-[11px] font-medium text-muted-foreground hover:text-foreground underline-offset-2 hover:underline transition-all">Edit</button>
+                                <button className="text-[11px] font-medium text-muted-foreground hover:text-foreground underline-offset-2 hover:underline transition-all">Reply</button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}

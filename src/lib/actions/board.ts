@@ -84,21 +84,28 @@ export async function renameBoard(boardId: string, title: string) {
 export async function fetchBoardData(boardId: string) {
   const supabase = await getSupabase()
 
-  // Fetch board for category library
-  const { data: board, error: boardError } = await supabase
-    .from('boards')
-    .select('categories')
-    .eq('id', boardId)
-    .single()
+  const [boardResult, listsResult] = await Promise.all([
+    supabase
+      .from('boards')
+      .select('categories')
+      .eq('id', boardId)
+      .single(),
+    supabase
+      .from('lists')
+      .select('*')
+      .eq('board_id', boardId)
+      .order('position', { ascending: true }),
+  ])
 
-  // Fetch lists
-  const { data: lists, error: listsError } = await supabase
-    .from('lists')
-    .select('*')
-    .eq('board_id', boardId)
-    .order('position', { ascending: true })
+  const { data: board, error: boardError } = boardResult
+  const { data: lists, error: listsError } = listsResult
 
+  if (boardError) throw new Error("Board fetch error: " + boardError.message)
   if (listsError) throw new Error("Lists fetch error: " + listsError.message)
+
+  if (!lists?.length) {
+    return { lists: [], boardCategories: board?.categories || [] }
+  }
 
   // Fetch cards
   const { data: cards, error: cardsError } = await supabase
@@ -114,14 +121,23 @@ export async function fetchBoardData(boardId: string) {
 
   if (cardsError) throw new Error("Cards fetch error: " + cardsError.message)
 
+  const cardsByList = new Map<string, any[]>()
+  for (const card of cards || []) {
+    const listCards = cardsByList.get(card.list_id)
+    if (listCards) {
+      listCards.push(card)
+    } else {
+      cardsByList.set(card.list_id, [card])
+    }
+  }
+
   // Format into the shape expected by the frontend
   const formattedLists = lists.map((list) => ({
     id: list.id,
     title: list.title,
     position: list.position,
     color: list.color || undefined,
-    tasks: cards
-      .filter((card) => card.list_id === list.id)
+    tasks: (cardsByList.get(list.id) || [])
       .map((card) => ({
         id: card.id,
         listId: card.list_id,
@@ -352,22 +368,23 @@ export async function getCurrentUserProfile() {
 export async function getBoardMembers(boardId: string) {
   const supabase = await getSupabase()
 
-  // Fetch members with their user profiles
-  const { data: members, error: membersError } = await supabase
-    .from('board_members')
-    .select('*, user:users(id, name, email, avatar_url)')
-    .eq('board_id', boardId)
-    .order('created_at', { ascending: true })
+  const [membersResult, invitesResult] = await Promise.all([
+    supabase
+      .from('board_members')
+      .select('*, user:users(id, name, email, avatar_url)')
+      .eq('board_id', boardId)
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('board_invites')
+      .select('*')
+      .eq('board_id', boardId)
+      .order('created_at', { ascending: true }),
+  ])
+
+  const { data: members, error: membersError } = membersResult
+  const { data: invites, error: invitesError } = invitesResult
 
   if (membersError) throw new Error('Failed to fetch members: ' + membersError.message)
-
-  // Fetch pending invites
-  const { data: invites, error: invitesError } = await supabase
-    .from('board_invites')
-    .select('*')
-    .eq('board_id', boardId)
-    .order('created_at', { ascending: true })
-
   if (invitesError) throw new Error('Failed to fetch invites: ' + invitesError.message)
 
   return {

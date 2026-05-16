@@ -1,29 +1,52 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import dynamic from 'next/dynamic'
 import { DragDropContext, Droppable, DropResult } from '@hello-pangea/dnd'
 import { List as ListComponent } from './List'
-import { initialData, List, Task, Category } from '@/lib/mocks/board-data'
+import { List, Task, Category } from '@/lib/mocks/board-data'
 import { Button } from '@/components/ui/button'
 import { Plus, Filter, Search, X, Check, Tag, User, Calendar, Clock, BarChart2 } from 'lucide-react'
-import { CardModal } from './CardModal'
-import { fetchBoardData, updateListPositions, updateCardPositions, createList, updateBoardCategories, getBoardMembers } from '@/lib/actions/board'
+import { fetchBoardData, updateListPositions, updateCardPositions, createList, getBoardMembers } from '@/lib/actions/board'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { BoardDashboard } from './BoardDashboard'
 
-export function Board({ boardId }: { boardId: string }) {
+const CardModal = dynamic(() => import('./CardModal').then((mod) => mod.CardModal), {
+  ssr: false,
+})
+
+const BoardDashboard = dynamic(() => import('./BoardDashboard').then((mod) => mod.BoardDashboard), {
+  ssr: false,
+})
+
+interface BoardProps {
+  boardId: string
+  currentUserId?: string
+  initialLists: List[]
+  initialCategories: Category[]
+  initialMembers: any[]
+  initialIsViewer: boolean
+}
+
+export function Board({ 
+  boardId, 
+  currentUserId,
+  initialLists,
+  initialCategories,
+  initialMembers,
+  initialIsViewer
+}: BoardProps) {
   const [isMounted, setIsMounted] = useState(false)
-  const [lists, setLists] = useState<List[]>([])
+  const [lists, setLists] = useState<List[]>(initialLists)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   
   // Inline list creation state
   const [isAddingList, setIsAddingList] = useState(false)
   const [newListTitle, setNewListTitle] = useState('')
-  const [isLoading, setIsLoading] = useState(true)
-  const [boardCategories, setBoardCategories] = useState<Category[]>([])
-  const [boardMembers, setBoardMembers] = useState<any[]>([])
+  const [boardCategories, setBoardCategories] = useState<Category[]>(initialCategories)
+  const [boardMembers, setBoardMembers] = useState<any[]>(initialMembers)
+  const [isViewer, setIsViewer] = useState(initialIsViewer)
 
   // Filter state
   const [isFilterOpen, setIsFilterOpen] = useState(false)
@@ -36,25 +59,7 @@ export function Board({ boardId }: { boardId: string }) {
 
   useEffect(() => {
     setIsMounted(true)
-    loadBoard()
-  }, [boardId])
-
-  const loadBoard = async () => {
-    try {
-      setIsLoading(true)
-      const data = await fetchBoardData(boardId)
-      setLists(data.lists)
-      setBoardCategories(data.boardCategories || [])
-      
-      const membersData = await getBoardMembers(boardId)
-      setBoardMembers(membersData.members.map((m: any) => m.user).filter(Boolean))
-    } catch (error: any) {
-      console.error("Failed to load board:", error)
-      toast.error(error.message || "Failed to load board")
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  }, [])
 
   const handleAddList = async () => {
     if (!newListTitle.trim()) return
@@ -193,7 +198,7 @@ export function Board({ boardId }: { boardId: string }) {
         // Category filter
         if (filterCategories.length > 0) {
           if (filterCategories.includes('no-label')) {
-            if (task.categories?.length > 0) return false
+            if ((task.categories?.length ?? 0) > 0) return false
           } else {
             const hasSelectedCategory = (task.categories || []).some(c => filterCategories.includes(c.id))
             if (!hasSelectedCategory) return false
@@ -203,7 +208,7 @@ export function Board({ boardId }: { boardId: string }) {
         // Member filter
         if (filterMembers.length > 0) {
           if (filterMembers.includes('no-member')) {
-            if (task.assignees?.length > 0) return false
+            if ((task.assignees?.length ?? 0) > 0) return false
           } else {
             const hasSelectedMember = (task.assignees || []).some(m => filterMembers.includes(m.id))
             if (!hasSelectedMember) return false
@@ -504,7 +509,7 @@ export function Board({ boardId }: { boardId: string }) {
       </div>
 
       <DragDropContext onDragEnd={onDragEnd}>
-        <Droppable droppableId="board" type="list" direction="horizontal">
+        <Droppable droppableId="board" type="list" direction="horizontal" isDropDisabled={isViewer}>
           {(provided) => (
             <div
               {...provided.droppableProps}
@@ -512,43 +517,46 @@ export function Board({ boardId }: { boardId: string }) {
               className="flex flex-1 gap-4 p-6 items-start overflow-x-auto"
             >
               {filteredLists.map((list, index) => (
-                <ListComponent 
-                  key={list.id} 
-                  list={list} 
-                  index={index} 
-                  onTaskClick={setSelectedTask}
-                  boardId={boardId}
-                  setLists={setLists}
-                />
+                  <ListComponent 
+                    key={list.id} 
+                    list={list} 
+                    index={index} 
+                    onTaskClick={setSelectedTask}
+                    boardId={boardId}
+                    setLists={setLists}
+                    isViewer={isViewer}
+                  />
               ))}
               {provided.placeholder}
               
-              <div className="w-80 flex-shrink-0">
-                {!isAddingList ? (
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start h-12 bg-muted/40 border-dashed hover:bg-muted/60 text-muted-foreground"
-                    onClick={() => setIsAddingList(true)}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add another list
-                  </Button>
-                ) : (
-                  <div className="bg-muted/40 p-3 rounded-xl border border-border/50 shadow-sm space-y-3">
-                    <Input 
-                      autoFocus
-                      placeholder="Enter list title..."
-                      value={newListTitle}
-                      onChange={(e) => setNewListTitle(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddList()}
-                    />
-                    <div className="flex items-center gap-2">
-                      <Button size="sm" onClick={handleAddList}>Add List</Button>
-                      <Button size="sm" variant="ghost" onClick={() => setIsAddingList(false)}>Cancel</Button>
+              {!isViewer && (
+                <div className="w-80 flex-shrink-0">
+                  {!isAddingList ? (
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start h-12 bg-muted/40 border-dashed hover:bg-muted/60 text-muted-foreground"
+                      onClick={() => setIsAddingList(true)}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add another list
+                    </Button>
+                  ) : (
+                    <div className="bg-muted/40 p-3 rounded-xl border border-border/50 shadow-sm space-y-3">
+                      <Input 
+                        autoFocus
+                        placeholder="Enter list title..."
+                        value={newListTitle}
+                        onChange={(e) => setNewListTitle(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAddList()}
+                      />
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" onClick={handleAddList}>Add List</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setIsAddingList(false)}>Cancel</Button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </Droppable>
@@ -563,6 +571,7 @@ export function Board({ boardId }: { boardId: string }) {
         boardCategories={boardCategories}
         setBoardCategories={setBoardCategories}
         boardId={boardId}
+        isViewer={isViewer}
       />
 
       <BoardDashboard 

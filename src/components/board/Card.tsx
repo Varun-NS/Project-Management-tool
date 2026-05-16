@@ -8,18 +8,21 @@ interface CardProps {
   task: Task
   index: number
   onClick?: () => void
+  isViewer?: boolean
 }
 
-export function Card({ task, index, onClick }: CardProps) {
+export function Card({ task, index, onClick, isViewer }: CardProps) {
   return (
-    <Draggable draggableId={task.id} index={index}>
+    <Draggable draggableId={task.id} index={index} isDragDisabled={isViewer}>
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           onClick={onClick}
-          className={`rounded-xl p-3.5 group cursor-grab active:cursor-grabbing transition-[box-shadow,border-color] duration-200 ${
+          className={`rounded-xl p-3.5 group transition-[box-shadow,border-color] duration-200 ${
+            isViewer ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'
+          } ${
             snapshot.isDragging
               ? 'shadow-xl shadow-black/15'
               : 'shadow-sm shadow-black/5 hover:shadow-md hover:shadow-black/10'
