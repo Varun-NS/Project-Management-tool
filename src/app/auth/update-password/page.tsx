@@ -28,13 +28,17 @@ export default function UpdatePasswordPage() {
       const result = await updatePassword(formData)
       if (result?.error) {
         toast.error(result.error)
+        setIsLoading(false)
       } else {
         toast.success('Password updated successfully!')
       }
     } catch (e: any) {
-      toast.error(e.message || 'Failed to update password')
-    } finally {
-      setIsLoading(false)
+      // Only reset loading state if it's an actual error, not a Next.js redirect
+      if (e?.message !== 'NEXT_REDIRECT' && !e?.digest?.startsWith('NEXT_REDIRECT')) {
+        toast.error(e.message || 'Failed to update password')
+        setIsLoading(false)
+      }
+      throw e
     }
   }
 

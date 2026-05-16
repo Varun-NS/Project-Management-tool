@@ -19,9 +19,14 @@ export default function AuthPage() {
       const result = isLogin ? await login(formData) : await signup(formData)
       if (result?.error) {
         toast.error(result.error)
+        setIsLoading(false)
       }
-    } finally {
-      setIsLoading(false)
+    } catch (e: any) {
+      // Only reset loading state if it's an actual error, not a Next.js redirect
+      if (e?.message !== 'NEXT_REDIRECT' && !e?.digest?.startsWith('NEXT_REDIRECT')) {
+        setIsLoading(false)
+      }
+      throw e
     }
   }
 
